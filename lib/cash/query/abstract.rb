@@ -49,10 +49,20 @@ module Cash
 
       private
       def cacheable?(*optionss)
+        # Options are not safe if:
+        # => There are not of type hash
+        # => They have other keys than: :conditions, :readonly, :limit, :offset or :order
+        # => They don't have the key :readonly (?)
         optionss.each { |options| return unless safe_options_for_cache?(options) }
+        
+        # For each optionss, get the conditions in key-value pairs
         partial_indices = optionss.collect { |options| attribute_value_pairs_for_conditions(options[:conditions]) }
         return if partial_indices.include?(nil)
+        
+        # How do you sum an array of array with key-value pairs? (http://railsapi.com/doc/rails-v2.3.8/classes/Enumerable.html#M003258)
         attribute_value_pairs = partial_indices.sum.sort { |x, y| x[0] <=> y[0] }
+        
+        
         if index = indexed_on?(attribute_value_pairs.collect { |pair| pair[0] })
           if index.matches?(self)
             [attribute_value_pairs, index]
@@ -75,6 +85,7 @@ module Cash
 
       def safe_options_for_cache?(options)
         return false unless options.kind_of?(Hash)
+        
         options.except(:conditions, :readonly, :limit, :offset, :order).values.compact.empty? && !options[:readonly]
       end
 
